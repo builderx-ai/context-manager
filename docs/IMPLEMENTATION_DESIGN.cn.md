@@ -409,6 +409,265 @@ generate:
 
 ---
 
+## 自动注入系统
+
+### 概述
+
+Context Injector 自动生成 AI 编码工具在会话启动时读取的工具特定配置文件。这实现了**零命令上下文注入** - 用户只需安装一次包，所有支持的工具就会自动接收上下文。
+
+### 架构流程
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Context Manager CLI                           │
+│                   (真实来源)                                     │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              │ ctx install / ctx add / ctx remove
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  .context/                                       │
+│  ├── manifest.yaml    (已安装的包)                              │
+│  ├── lock.yaml        (固定版本)                                │
+│  └── packages/        (实际内容)                                │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              │ 生成 / 同步
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              自动读取文件（生成的输出）                          │
+│  ├── CLAUDE.md           → Claude Code                          │
+│  ├── .cursorrules        → Cursor                               │
+│  ├── .windsurfrules      → Windsurf                             │
+│  ├── .continuerules      → Continue.dev                         │
+│  └── .github/copilot-instructions.md → GitHub Copilot           │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              │ 在会话启动时自动读取
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    AI 编码工具                                   │
+│      (Claude Code, Cursor, Windsurf, Copilot, Continue)         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 支持的工具和自动读取文件
+
+| 工具 | 自动读取文件 | 位置 | 备注 |
+|------|-------------|------|------|
+| Claude Code | `CLAUDE.md` | 项目根目录 | 也会全局读取 `~/.claude/CLAUDE.md` |
+| Cursor | `.cursorrules` | 项目根目录 | |
+| Windsurf | `.windsurfrules` | 项目根目录 | |
+| GitHub Copilot | `copilot-instructions.md` | `.github/` | |
+| Continue.dev | `.continuerules` | 项目根目录 | |
+| Aider | `.aider.conf.yml` | 项目根目录 | |
+
+### CLI 命令和文件生成
+
+每个修改已安装包的命令都会触发所有配置文件的自动重新生成：
+
+| 命令 | 对自动读取文件的影响 |
+|------|---------------------|
+| `ctx init` | 创建初始自动读取文件 |
+| `ctx add <pkg>` | 重新生成所有自动读取文件 |
+| `ctx remove <pkg>` | 重新生成所有自动读取文件 |
+| `ctx install` | 重新生成所有自动读取文件 |
+| `ctx sync` | 仅重新生成自动读取文件（不修改包）|
+| `ctx generate` | 显式重新生成特定或所有文件 |
+
+### 内容策略：混合方法
+
+自动读取文件使用混合策略，在令牌效率和完整性之间取得平衡：
+
+#### 1. 关键规则（内联）
+
+必须始终遵循的基本规则直接包含在生成的文件中：
+
+```markdown
+## 关键规则
+
+- 永远不要在 TypeScript 中使用 `any` 类型
+- 始终使用命名导出
+- 错误处理：使用 Result 模式
+- 所有 API 响应必须是类型化的
+```
+
+#### 2. 详细标准（引用）
+
+全面的文档通过引用提供，供 AI 智能体按需加载：
+
+```markdown
+## 详细标准
+
+如需全面指南，在处理相关任务时读取这些文件：
+
+| 主题 | 文件 | 何时阅读 |
+|------|------|---------|
+| TypeScript | `.context/packages/typescript-standards/README.md` | 编写 TS 代码时 |
+| React 模式 | `.context/packages/react-patterns/README.md` | 创建组件时 |
+| API 设计 | `.context/packages/api-guidelines/README.md` | 构建端点时 |
+```
+
+### 生成算法
+
+```typescript
+interface GeneratorOptions {
+  strategy: 'reference' | 'embed' | 'hybrid';
+  maxInlineSize?: number;  // 字节，默认 2000
+}
+
+function generateAutoInjectFiles(manifest: Manifest): void {
+  const packages = loadInstalledPackages(manifest);
+  const config = manifest.generate || getDefaultGenerateConfig();
+
+  // 为每个启用的工具生成
+  if (config.claude?.enabled !== false) {
+    generateFile('CLAUDE.md', packages, config.claude);
+  }
+  if (config.cursor?.enabled !== false) {
+    generateFile('.cursorrules', packages, config.cursor);
+  }
+  if (config.windsurf?.enabled !== false) {
+    generateFile('.windsurfrules', packages, config.windsurf);
+  }
+  if (config.copilot?.enabled !== false) {
+    generateFile('.github/copilot-instructions.md', packages, config.copilot);
+  }
+  if (config.continue?.enabled !== false) {
+    generateFile('.continuerules', packages, config.continue);
+  }
+}
+
+function generateFile(
+  path: string,
+  packages: Package[],
+  options: GeneratorOptions
+): void {
+  let content = getHeader(path);
+
+  // 始终内联关键规则
+  content += "## 关键规则\n\n";
+  for (const pkg of packages) {
+    const critical = pkg.getCriticalRules();
+    if (critical) {
+      content += `### ${pkg.name}\n${critical}\n\n`;
+    }
+  }
+
+  // 根据策略处理详细内容
+  if (options.strategy === 'embed') {
+    // 完全内联 - 嵌入所有内容
+    content += "## 完整标准\n\n";
+    for (const pkg of packages) {
+      content += `### ${pkg.name}\n`;
+      content += pkg.getFullContent();
+      content += "\n\n";
+    }
+  } else {
+    // 引用或混合 - 指向文件
+    content += "## 详细标准\n\n";
+    content += "如需全面指南，请阅读以下内容：\n\n";
+    for (const pkg of packages) {
+      content += `- **${pkg.name}**: \`.context/packages/${pkg.name}/\`\n`;
+    }
+  }
+
+  writeFileSync(path, content);
+}
+```
+
+### Git 策略选项
+
+生成文件的版本控制有两种有效方法：
+
+#### 选项 A：Gitignore 生成的文件（推荐用于团队）
+
+```gitignore
+# .gitignore
+# 由 ctx 生成 - 使用 `ctx install` 重新生成
+CLAUDE.md
+.cursorrules
+.windsurfrules
+.continuerules
+.github/copilot-instructions.md
+```
+
+**优点：**
+- 干净的 git 历史
+- 生成的文件不会有合并冲突
+- `.context/` 中的单一真实来源
+
+**缺点：**
+- 团队成员必须在克隆后运行 `ctx install`
+- CI/CD 需要 `ctx install` 步骤
+
+#### 选项 B：提交生成的文件（更简单的入门）
+
+```gitignore
+# .gitignore
+# 仅忽略包内容（submodules 处理）
+# 生成的文件会被提交
+```
+
+**优点：**
+- 对新团队成员立即可用
+- 不需要额外设置
+- AI 工具无需运行任何命令即可工作
+
+**缺点：**
+- 生成的文件出现在 git diff 中
+- 可能的合并冲突
+- 必须记住在包更改后重新生成
+
+### 设计原理
+
+#### 为什么选择自动读取文件而不是钩子？
+
+我们评估了三种注入机制：
+
+| 方法 | 自动 | 跨工具 | 复杂度 |
+|------|------|--------|--------|
+| **钩子**（Python 脚本）| ✅ | ❌ 仅 Claude | 高 |
+| **斜杠命令** | ❌ 手动 | ❌ 仅 Claude | 中 |
+| **自动读取文件** | ✅ | ✅ 所有工具 | 低 |
+
+**决策：** 选择自动读取文件，因为：
+
+1. **通用兼容性** - 适用于任何支持配置文件的 AI 编码工具
+2. **零摩擦** - 初始 `ctx install` 后无需命令
+3. **简单实现** - 只是文件生成，没有运行时组件
+4. **可预测行为** - 每次会话内容相同
+5. **无供应商锁定** - 标准 markdown 文件，没有专有格式
+
+#### 为什么选择混合内容策略？
+
+1. **令牌效率** - 避免每次会话加载 10,000+ 个令牌
+2. **关键规则始终可见** - 最重要的规则不会被遗漏
+3. **按需详情** - 智能体在需要时加载全面文档
+4. **渐进式披露** - 匹配开发者使用文档的方式
+
+#### 考虑过的替代方案：Claude Code 钩子
+
+Claude Code 支持可以动态注入上下文的钩子系统：
+
+```python
+# .claude/hooks/session-start.py
+# 在每次会话启动时运行，打印到 stdout → 注入到对话中
+```
+
+**我们为什么没有选择这个作为主要方案：**
+- 仅适用于 Claude Code
+- 需要 Python 运行时
+- 调试更复杂
+- 用户无法轻松查看注入的内容
+
+**潜在的未来增强：** 为想要高级功能（如基于任务的动态注入）的 Claude Code 用户提供 `ctx install --with-hooks`。
+
+---
+
 ## 版本管理
 
 ### 决策：使用 Semver 库 + Lock 文件
