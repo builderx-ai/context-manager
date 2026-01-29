@@ -419,12 +419,243 @@ You have full access to these files via the Read tool.
 
 ### 初始化
 
+#### 初始化项目 Context Manager
+
 ```bash
 ctx init
 # 创建：
 #   .context/
 #   ├── manifest.yaml
 #   └── .gitignore
+```
+
+#### 初始化新的 Context 仓库
+
+```bash
+# 交互式模式 - 提示所有选项
+ctx init --context
+
+# 快速创建个人 context
+ctx init --context --type personal
+
+# 快速创建组织 context
+ctx init --context --type organizational
+
+# 完全自定义
+ctx init --context \
+  --type organizational \
+  --name "engineering-standards" \
+  --description "公司级工程标准" \
+  --org "techcorp" \
+  --tags "general,typescript,testing"
+```
+
+**交互式提示：**
+
+```
+? Context 类型: (使用箭头键)
+❯ 个人 - 用于个人使用或小团队
+  组织 - 用于公司级标准
+
+? Context 名称: engineering-standards
+
+? 描述: 公司级工程标准
+
+? 组织/所有者: techcorp
+
+? 标签 (逗号分隔): general, typescript, testing, security
+
+? 许可证: (使用箭头键)
+❯ MIT
+  Apache-2.0
+  ISC
+  Unlicense
+  专有
+
+? 初始化 Git 仓库? (Y/n) y
+
+? 添加 GitHub topic 'ctx-context'? (Y/n) y
+```
+
+**生成的结构：**
+
+```
+engineering-standards/
+├── context.yaml          # Context 元数据
+├── index.md              # 摘要（总是加载）
+├── details/              # 详细 context（可选）
+│   ├── code-style.md
+│   ├── testing.md
+│   └── .gitkeep
+├── tools/                # 工具特定覆盖（可选）
+│   ├── claude.md
+│   └── copilot.md
+├── .gitignore
+├── README.md             # 使用指南
+└── LICENSE               # 基于选择
+```
+
+**生成的 context.yaml（组织类型）：**
+
+```yaml
+name: engineering-standards
+version: 0.1.0
+type: organizational
+organization: techcorp
+description: 公司级工程标准
+
+# 依赖其他 context
+depends: []
+  # - github.com/awesome-contexts/base-standards@^1.0
+
+# 摘要中包含的内容（index.md 总是包含）
+summary: []
+  # - details/code-style.md#quick-reference
+  # - details/testing.md#test-structure
+
+# 用于发现和智能加载的标签
+tags:
+  - general
+  - typescript
+  - testing
+  - security
+
+# 许可证
+license: MIT
+
+# 维护者
+maintainers:
+  - name: 你的名字
+    email: you@techcorp.com
+    github: yourusername
+```
+
+**生成的 context.yaml（个人类型）：**
+
+```yaml
+name: my-coding-standards
+version: 0.1.0
+type: personal
+author: 你的名字
+description: 我的个人编码标准和偏好
+
+depends: []
+summary: []
+
+tags:
+  - personal
+  - preferences
+
+license: MIT
+```
+
+**生成的 index.md：**
+
+```markdown
+# Engineering Standards
+
+> 公司级工程标准
+
+## 快速参考
+
+在这里添加应该总是加载的基本规则。
+
+例如：
+- 规则 1：简要指导
+- 规则 2：另一个指导
+- 规则 3：重要原则
+
+## 详细指南
+
+详细文档请查看：
+- [主题 1](details/topic1.md) - 描述
+- [主题 2](details/topic2.md) - 描述
+
+在 \`details/\` 文件夹中添加更多文档。
+```
+
+**生成的 README.md：**
+
+```markdown
+# Engineering Standards
+
+公司级工程标准
+
+## 安装
+
+将此 context 添加到你的项目：
+
+\`\`\`bash
+ctx add github.com/techcorp/engineering-standards
+\`\`\`
+
+## 内容
+
+- **index.md** - 基本标准（总是加载）
+- **details/** - 详细文档（按需加载）
+
+## 使用
+
+添加此 context 后，AI 助手将自动：
+1. 对所有任务遵循 \`index.md\` 中的标准
+2. 在处理特定区域时阅读详细指南
+
+## 贡献
+
+要建议改进：
+
+1. Fork 此仓库
+2. 进行修改
+3. 提交 pull request
+
+或者从你的项目使用 \`ctx push\`：
+
+\`\`\`bash
+# 在你的项目中本地编辑 context
+vim .context/packages/github.com/techcorp/engineering-standards/index.md
+
+# 推送更改
+ctx push github.com/techcorp/engineering-standards
+\`\`\`
+
+## 许可证
+
+MIT
+```
+
+**输出：**
+
+```
+✓ 已创建 context.yaml
+✓ 已创建 index.md
+✓ 已创建 details/.gitkeep
+✓ 已创建 tools/.gitkeep
+✓ 已创建 README.md
+✓ 已创建 LICENSE
+✓ 已创建 .gitignore
+✓ 已初始化 Git 仓库
+
+下一步：
+  1. 编辑 index.md 添加你的基本标准
+  2. 在 details/ 文件夹中添加详细文档
+  3. 创建 GitHub 仓库：
+     
+     gh repo create techcorp/engineering-standards --public
+     git remote add origin git@github.com:techcorp/engineering-standards.git
+     git add .
+     git commit -m "Initial context"
+     git push -u origin main
+     
+  4. 标记你的第一个版本：
+     
+     git tag v0.1.0
+     git push --tags
+     
+  5. 与你的团队分享：
+     
+     ctx add github.com/techcorp/engineering-standards
+
+了解更多: https://github.com/context-manager/docs
 ```
 
 ### 添加上下文

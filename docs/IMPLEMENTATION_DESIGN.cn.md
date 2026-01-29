@@ -75,12 +75,393 @@ my-project/
 
 ### 实现
 
-#### 1. 初始化
+#### 1. 项目初始化
 ```bash
 ctx init
 # → 创建 .context/manifest.yaml
 # → 创建 .context/.gitignore
 # → 初始化 .gitmodules（如果需要）
+```
+
+#### 1b. Context 仓库创建
+
+```bash
+ctx init --context [选项]
+```
+
+**实现步骤：**
+
+1. **提示 Context 类型**（如果未指定）：
+   ```typescript
+   enum ContextType {
+     Personal = 'personal',
+     Organizational = 'organizational'
+   }
+   
+   interface ContextConfig {
+     type: ContextType;
+     name: string;
+     description: string;
+     owner?: string;           // 用于组织类型
+     author?: string;          // 用于个人类型
+     tags: string[];
+     license: string;
+     dependencies: string[];
+     initGit: boolean;
+     addGitHubTopic: boolean;
+   }
+   ```
+
+2. **交互式提示**：
+   ```typescript
+   async function promptContextConfig(): Promise<ContextConfig> {
+     const answers = await inquirer.prompt([
+       {
+         type: 'list',
+         name: 'type',
+         message: 'Context 类型:',
+         choices: [
+           { name: '个人 - 用于个人使用或小团队', value: 'personal' },
+           { name: '组织 - 用于公司级标准', value: 'organizational' }
+         ]
+       },
+       {
+         type: 'input',
+         name: 'name',
+         message: 'Context 名称:',
+         validate: (input) => {
+           if (!/^[a-z0-9-]+$/.test(input)) {
+             return '名称必须是小写字母数字和连字符';
+           }
+           return true;
+         }
+       },
+       {
+         type: 'input',
+         name: 'description',
+         message: '描述:'
+       },
+       {
+         type: 'input',
+         name: 'owner',
+         message: '组织/所有者:',
+         when: (answers) => answers.type === 'organizational'
+       },
+       {
+         type: 'input',
+         name: 'author',
+         message: '作者名称:',
+         when: (answers) => answers.type === 'personal',
+         default: () => execSync('git config user.name').toString().trim()
+       },
+       {
+         type: 'input',
+         name: 'tags',
+         message: '标签 (逗号分隔):',
+         filter: (input) => input.split(',').map((s: string) => s.trim())
+       },
+       {
+         type: 'list',
+         name: 'license',
+         message: '许可证:',
+         choices: ['MIT', 'Apache-2.0', 'ISC', 'Unlicense', '专有']
+       },
+       {
+         type: 'confirm',
+         name: 'initGit',
+         message: '初始化 Git 仓库?',
+         default: true
+       },
+       {
+         type: 'confirm',
+         name: 'addGitHubTopic',
+         message: '添加 GitHub topic "ctx-context" 以提高可发现性?',
+         default: true,
+         when: (answers) => answers.type === 'organizational'
+       }
+     ]);
+     
+     return answers;
+   }
+   ```
+
+3. **生成目录结构**：
+   ```typescript
+   async function createContextRepo(config: ContextConfig): Promise<void> {
+     const baseDir = process.cwd();
+     
+     // 创建目录
+     await fs.mkdir(path.join(baseDir, 'details'), { recursive: true });
+     await fs.mkdir(path.join(baseDir, 'tools'), { recursive: true });
+     
+     // 生成 context.yaml
+     const contextYaml = generateContextYaml(config);
+     await fs.writeFile(path.join(baseDir, 'context.yaml'), contextYaml);
+     
+     // 生成 index.md
+     const indexMd = generateIndexMd(config);
+     await fs.writeFile(path.join(baseDir, 'index.md'), indexMd);
+     
+     // 创建 .gitkeep 文件
+     await fs.writeFile(path.join(baseDir, 'details', '.gitkeep'), '');
+     await fs.writeFile(path.join(baseDir, 'tools', '.gitkeep'), '');
+     
+     // 生成 README.md
+     const readmeMd = generateReadmeMd(config);
+     await fs.writeFile(path.join(baseDir, 'README.md'), readmeMd);
+     
+     // 生成 LICENSE
+     const license = await fetchLicenseText(config.license);
+     await fs.writeFile(path.join(baseDir, 'LICENSE'), license);
+     
+     // 生成 .gitignore
+     const gitignore = generateGitignore();
+     await fs.writeFile(path.join(baseDir, '.gitignore'), gitignore);
+     
+     // 如果需要，初始化 Git
+     if (config.initGit) {
+       execSync('git init', { cwd: baseDir });
+       
+       // 在输出中添加 GitHub topic 指示
+       if (config.addGitHubTopic) {
+         console.log('\n别忘了在 GitHub 上添加 "ctx-context" topic!');
+       }
+     }
+   }
+   ```
+
+4. **模板生成函数**：
+   ```typescript
+   function generateContextYaml(config: ContextConfig): string {
+     const yaml: any = {
+       name: config.name,
+       version: '0.1.0',
+       type: config.type,
+       description: config.description,
+       depends: [],
+       summary: [],
+       tags: config.tags,
+       license: config.license
+     };
+     
+     if (config.type === 'organizational') {
+       yaml.organization = config.owner;
+       yaml.maintainers = [{
+         name: config.author || '你的名字',
+         email: 'you@example.com',
+         github: 'yourusername'
+       }];
+     } else {
+       yaml.author = config.author;
+     }
+     
+     return stringify(yaml);
+   }
+   
+   function generateIndexMd(config: ContextConfig): string {
+     return `# ${toTitleCase(config.name)}
+
+> ${config.description}
+
+## 快速参考
+
+在这里添加应该总是加载的基本规则。
+
+例如：
+- 规则 1：简要指导
+- 规则 2：另一个指导
+- 规则 3：重要原则
+
+## 详细指南
+
+详细文档请查看：
+- [主题 1](details/topic1.md) - 描述
+- [主题 2](details/topic2.md) - 描述
+
+在 \`details/\` 文件夹中添加更多文档。
+`;
+   }
+   
+   function generateReadmeMd(config: ContextConfig): string {
+     const repoPath = config.type === 'organizational' 
+       ? `github.com/${config.owner}/${config.name}`
+       : `github.com/yourusername/${config.name}`;
+     
+     return `# ${toTitleCase(config.name)}
+
+${config.description}
+
+## 安装
+
+将此 context 添加到你的项目：
+
+\`\`\`bash
+ctx add ${repoPath}
+\`\`\`
+
+## 内容
+
+- **index.md** - 基本标准（总是加载）
+- **details/** - 详细文档（按需加载）
+
+## 使用
+
+添加此 context 后，AI 助手将自动：
+1. 对所有任务遵循 \`index.md\` 中的标准
+2. 在处理特定区域时阅读详细指南
+
+## 贡献
+
+要建议改进：
+
+1. Fork 此仓库
+2. 进行修改
+3. 提交 pull request
+
+或者从你的项目使用 \`ctx push\`：
+
+\`\`\`bash
+# 在你的项目中本地编辑 context
+vim .context/packages/${repoPath}/index.md
+
+# 推送更改
+ctx push ${repoPath}
+\`\`\`
+
+## 许可证
+
+${config.license}
+`;
+   }
+   
+   function generateGitignore(): string {
+     return `# 操作系统
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 临时文件
+*.tmp
+.cache/
+`;
+   }
+   ```
+
+5. **许可证获取**：
+   ```typescript
+   async function fetchLicenseText(licenseName: string): Promise<string> {
+     const licenses: Record<string, string> = {
+       'MIT': 'https://raw.githubusercontent.com/licenses/license-templates/master/templates/mit.txt',
+       'Apache-2.0': 'https://raw.githubusercontent.com/licenses/license-templates/master/templates/apache-2.0.txt',
+       // ... 其他许可证
+     };
+     
+     if (licenseName === '专有') {
+       return 'Copyright (c) All Rights Reserved.';
+     }
+     
+     const url = licenses[licenseName];
+     if (!url) {
+       throw new Error(`未知许可证: ${licenseName}`);
+     }
+     
+     const response = await fetch(url);
+     return response.text();
+   }
+   ```
+
+6. **CLI 集成**：
+   ```typescript
+   // 在 commands/init.ts 中
+   program
+     .command('init')
+     .description('初始化新项目或 context 仓库')
+     .option('--context', '创建新的 context 仓库')
+     .option('--type <type>', 'Context 类型: personal 或 organizational')
+     .option('--name <name>', 'Context 名称')
+     .option('--description <desc>', 'Context 描述')
+     .option('--org <org>', '组织名称（用于组织类型 context）')
+     .option('--tags <tags>', '逗号分隔的标签')
+     .option('--license <license>', '许可证类型')
+     .option('--no-git', '跳过 git 初始化')
+     .action(async (options) => {
+       if (options.context) {
+         await initContextRepo(options);
+       } else {
+         await initProject(options);
+       }
+     });
+   ```
+
+**命令行示例：**
+
+```bash
+# 交互式模式
+ctx init --context
+
+# 带所有选项的个人 context
+ctx init --context \
+  --type personal \
+  --name my-standards \
+  --description "我的个人编码标准" \
+  --tags "personal,typescript" \
+  --license MIT
+
+# 组织 context
+ctx init --context \
+  --type organizational \
+  --name engineering-standards \
+  --description "公司级标准" \
+  --org techcorp \
+  --tags "general,typescript,testing" \
+  --license MIT
+
+# 快速个人 context（最少提示）
+ctx init --context --type personal
+
+# 快速组织 context（最少提示）
+ctx init --context --type organizational
+```
+
+**成功输出：**
+
+```
+✓ 已创建 context.yaml
+✓ 已创建 index.md  
+✓ 已创建 details/.gitkeep
+✓ 已创建 tools/.gitkeep
+✓ 已创建 README.md
+✓ 已创建 LICENSE
+✓ 已创建 .gitignore
+✓ 已初始化 Git 仓库
+
+下一步：
+  1. 编辑 index.md 添加你的基本标准
+  2. 在 details/ 文件夹中添加详细文档
+  3. 创建 GitHub 仓库：
+     
+     gh repo create techcorp/engineering-standards --public
+     git remote add origin git@github.com:techcorp/engineering-standards.git
+     git add .
+     git commit -m "Initial context"
+     git push -u origin main
+     
+  4. 标记你的第一个版本：
+     
+     git tag v0.1.0
+     git push --tags
+     
+  5. 与你的团队分享：
+     
+     ctx add github.com/techcorp/engineering-standards
+
+了解更多: https://github.com/context-manager/docs
 ```
 
 #### 2. 添加 Context

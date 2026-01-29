@@ -419,12 +419,245 @@ You have full access to these files via the Read tool.
 
 ### Initialize
 
+#### Initialize Project Context Manager
+
 ```bash
 ctx init
 # Creates:
 #   .context/
 #   ├── manifest.yaml
 #   └── .gitignore
+```
+
+#### Initialize New Context Repository
+
+```bash
+# Interactive mode - prompts for all options
+ctx init --context
+
+# Quick personal context
+ctx init --context --type personal
+
+# Quick organizational context
+ctx init --context --type organizational
+
+# Full customization
+ctx init --context \
+  --type organizational \
+  --name "engineering-standards" \
+  --description "Company-wide engineering standards" \
+  --org "techcorp" \
+  --tags "general,typescript,testing"
+```
+
+**Interactive Prompts:**
+
+```
+? Context type: (Use arrow keys)
+❯ Personal - For individual use or small teams
+  Organizational - For company-wide standards
+
+? Context name: engineering-standards
+
+? Description: Company-wide engineering standards
+
+? Organization/Owner: techcorp
+
+? Tags (comma-separated): general, typescript, testing, security
+
+? License: (Use arrow keys)
+❯ MIT
+  Apache-2.0
+  ISC
+  Unlicense
+  Proprietary
+
+? Initialize Git repository? (Y/n) y
+
+? Add GitHub topic 'ctx-context'? (Y/n) y
+```
+
+**Generated Structure:**
+
+```
+engineering-standards/
+├── context.yaml          # Context metadata
+├── index.md              # Summary (always loaded)
+├── details/              # Detailed contexts (optional)
+│   ├── code-style.md
+│   ├── testing.md
+│   └── .gitkeep
+├── tools/                # Tool-specific overrides (optional)
+│   ├── claude.md
+│   └── copilot.md
+├── .gitignore
+├── README.md             # Usage guide
+└── LICENSE               # Based on selection
+```
+
+**Generated context.yaml (Organizational):**
+
+```yaml
+name: engineering-standards
+version: 0.1.0
+type: organizational
+organization: techcorp
+description: Company-wide engineering standards
+
+# Dependencies on other contexts
+depends: []
+  # - github.com/awesome-contexts/base-standards@^1.0
+
+# What to include in the summary (index.md is always included)
+summary: []
+  # - details/code-style.md#quick-reference
+  # - details/testing.md#test-structure
+
+# Tags for discovery and smart loading
+tags:
+  - general
+  - typescript
+  - testing
+  - security
+
+# License
+license: MIT
+
+# Maintainers
+maintainers:
+  - name: Your Name
+    email: you@techcorp.com
+    github: yourusername
+```
+
+**Generated context.yaml (Personal):**
+
+```yaml
+name: my-coding-standards
+version: 0.1.0
+type: personal
+author: Your Name
+description: My personal coding standards and preferences
+
+depends: []
+summary: []
+
+tags:
+  - personal
+  - preferences
+
+license: MIT
+```
+
+**Generated index.md:**
+
+```markdown
+# Engineering Standards
+
+> Company-wide engineering standards
+
+## Quick Reference
+
+Add your essential rules here that should always be loaded.
+
+Example:
+- Use TypeScript strict mode
+- Write tests for all public APIs
+- Follow conventional commits
+
+## Detailed Guides
+
+For comprehensive documentation, see:
+- [Code Style](details/code-style.md)
+- [Testing Practices](details/testing.md)
+
+Add more documents in the `details/` folder.
+```
+
+**Generated README.md:**
+
+```markdown
+# Engineering Standards
+
+Company-wide engineering standards
+
+## Installation
+
+Add this context to your project:
+
+```bash
+ctx add github.com/techcorp/engineering-standards
+```
+
+## Contents
+
+- **index.md** - Essential standards (always loaded)
+- **details/** - Detailed documentation (loaded on demand)
+  - code-style.md - Coding style guidelines
+  - testing.md - Testing practices
+
+## Usage
+
+After adding this context, AI assistants will automatically:
+1. Follow the standards in `index.md` for all tasks
+2. Read detailed guides when working on specific areas
+
+## Contributing
+
+To suggest improvements:
+
+1. Fork this repository
+2. Make your changes
+3. Submit a pull request
+
+Or use `ctx push` from your project:
+
+```bash
+# Edit the context locally in your project
+vim .context/packages/github.com/techcorp/engineering-standards/index.md
+
+# Push changes back
+ctx push github.com/techcorp/engineering-standards
+```
+
+## License
+
+MIT
+```
+
+**Output:**
+
+```
+✓ Created context.yaml
+✓ Created index.md
+✓ Created details/.gitkeep
+✓ Created tools/.gitkeep
+✓ Created README.md
+✓ Created LICENSE
+✓ Created .gitignore
+✓ Initialized Git repository
+
+Next steps:
+  1. Edit index.md to add your essential standards
+  2. Add detailed docs in details/ folder
+  3. Create a GitHub repository:
+     
+     gh repo create techcorp/engineering-standards --public
+     git remote add origin git@github.com:techcorp/engineering-standards.git
+     git add .
+     git commit -m "Initial context"
+     git push -u origin main
+     
+  4. Tag your first release:
+     
+     git tag v0.1.0
+     git push --tags
+     
+  5. Share with your team:
+     
+     ctx add github.com/techcorp/engineering-standards
+
+Learn more: https://github.com/context-manager/docs
 ```
 
 ### Add Context

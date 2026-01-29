@@ -13,12 +13,13 @@ This document consolidates all major technical decisions and design points for i
 2. [Git Repository Management](#git-repository-management)
 3. [Dependency Resolution](#dependency-resolution)
 4. [Cross-Tool Support](#cross-tool-support)
-5. [Version Management](#version-management)
-6. [Security Strategy](#security-strategy)
-7. [Agent Integration](#agent-integration)
-8. [Performance Optimization](#performance-optimization)
-9. [User Experience](#user-experience)
-10. [Technology Stack](#technology-stack)
+5. [Auto-Injection System](#auto-injection-system)
+6. [Version Management](#version-management)
+7. [Security Strategy](#security-strategy)
+8. [Agent Integration](#agent-integration)
+9. [Performance Optimization](#performance-optimization)
+10. [User Experience](#user-experience)
+11. [Technology Stack](#technology-stack)
 
 ---
 
@@ -75,12 +76,393 @@ my-project/
 
 ### Implementation
 
-#### 1. Initialization
+#### 1. Project Initialization
 ```bash
 ctx init
 # → Creates .context/manifest.yaml
 # → Creates .context/.gitignore
 # → Initializes .gitmodules (if needed)
+```
+
+#### 1b. Context Repository Creation
+
+```bash
+ctx init --context [options]
+```
+
+**Implementation Steps:**
+
+1. **Prompt for Context Type** (if not specified):
+   ```typescript
+   enum ContextType {
+     Personal = 'personal',
+     Organizational = 'organizational'
+   }
+   
+   interface ContextConfig {
+     type: ContextType;
+     name: string;
+     description: string;
+     owner?: string;           // For organizational
+     author?: string;          // For personal
+     tags: string[];
+     license: string;
+     dependencies: string[];
+     initGit: boolean;
+     addGitHubTopic: boolean;
+   }
+   ```
+
+2. **Interactive Prompts**:
+   ```typescript
+   async function promptContextConfig(): Promise<ContextConfig> {
+     const answers = await inquirer.prompt([
+       {
+         type: 'list',
+         name: 'type',
+         message: 'Context type:',
+         choices: [
+           { name: 'Personal - For individual use or small teams', value: 'personal' },
+           { name: 'Organizational - For company-wide standards', value: 'organizational' }
+         ]
+       },
+       {
+         type: 'input',
+         name: 'name',
+         message: 'Context name:',
+         validate: (input) => {
+           if (!/^[a-z0-9-]+$/.test(input)) {
+             return 'Name must be lowercase alphanumeric with dashes';
+           }
+           return true;
+         }
+       },
+       {
+         type: 'input',
+         name: 'description',
+         message: 'Description:'
+       },
+       {
+         type: 'input',
+         name: 'owner',
+         message: 'Organization/Owner:',
+         when: (answers) => answers.type === 'organizational'
+       },
+       {
+         type: 'input',
+         name: 'author',
+         message: 'Author name:',
+         when: (answers) => answers.type === 'personal',
+         default: () => execSync('git config user.name').toString().trim()
+       },
+       {
+         type: 'input',
+         name: 'tags',
+         message: 'Tags (comma-separated):',
+         filter: (input) => input.split(',').map((s: string) => s.trim())
+       },
+       {
+         type: 'list',
+         name: 'license',
+         message: 'License:',
+         choices: ['MIT', 'Apache-2.0', 'ISC', 'Unlicense', 'Proprietary']
+       },
+       {
+         type: 'confirm',
+         name: 'initGit',
+         message: 'Initialize Git repository?',
+         default: true
+       },
+       {
+         type: 'confirm',
+         name: 'addGitHubTopic',
+         message: 'Add GitHub topic "ctx-context" for discoverability?',
+         default: true,
+         when: (answers) => answers.type === 'organizational'
+       }
+     ]);
+     
+     return answers;
+   }
+   ```
+
+3. **Generate Directory Structure**:
+   ```typescript
+   async function createContextRepo(config: ContextConfig): Promise<void> {
+     const baseDir = process.cwd();
+     
+     // Create directories
+     await fs.mkdir(path.join(baseDir, 'details'), { recursive: true });
+     await fs.mkdir(path.join(baseDir, 'tools'), { recursive: true });
+     
+     // Generate context.yaml
+     const contextYaml = generateContextYaml(config);
+     await fs.writeFile(path.join(baseDir, 'context.yaml'), contextYaml);
+     
+     // Generate index.md
+     const indexMd = generateIndexMd(config);
+     await fs.writeFile(path.join(baseDir, 'index.md'), indexMd);
+     
+     // Create .gitkeep files
+     await fs.writeFile(path.join(baseDir, 'details', '.gitkeep'), '');
+     await fs.writeFile(path.join(baseDir, 'tools', '.gitkeep'), '');
+     
+     // Generate README.md
+     const readmeMd = generateReadmeMd(config);
+     await fs.writeFile(path.join(baseDir, 'README.md'), readmeMd);
+     
+     // Generate LICENSE
+     const license = await fetchLicenseText(config.license);
+     await fs.writeFile(path.join(baseDir, 'LICENSE'), license);
+     
+     // Generate .gitignore
+     const gitignore = generateGitignore();
+     await fs.writeFile(path.join(baseDir, '.gitignore'), gitignore);
+     
+     // Initialize Git if requested
+     if (config.initGit) {
+       execSync('git init', { cwd: baseDir });
+       
+       // Add GitHub topic instruction to output
+       if (config.addGitHubTopic) {
+         console.log('\nDon\'t forget to add the "ctx-context" topic on GitHub!');
+       }
+     }
+   }
+   ```
+
+4. **Template Generation Functions**:
+   ```typescript
+   function generateContextYaml(config: ContextConfig): string {
+     const yaml: any = {
+       name: config.name,
+       version: '0.1.0',
+       type: config.type,
+       description: config.description,
+       depends: [],
+       summary: [],
+       tags: config.tags,
+       license: config.license
+     };
+     
+     if (config.type === 'organizational') {
+       yaml.organization = config.owner;
+       yaml.maintainers = [{
+         name: config.author || 'Your Name',
+         email: 'you@example.com',
+         github: 'yourusername'
+       }];
+     } else {
+       yaml.author = config.author;
+     }
+     
+     return stringify(yaml);
+   }
+   
+   function generateIndexMd(config: ContextConfig): string {
+     return `# ${toTitleCase(config.name)}
+
+> ${config.description}
+
+## Quick Reference
+
+Add your essential rules here that should always be loaded.
+
+Example:
+- Rule 1: Brief guideline
+- Rule 2: Another guideline
+- Rule 3: Important principle
+
+## Detailed Guides
+
+For comprehensive documentation, see:
+- [Topic 1](details/topic1.md) - Description
+- [Topic 2](details/topic2.md) - Description
+
+Add more documents in the \`details/\` folder.
+`;
+   }
+   
+   function generateReadmeMd(config: ContextConfig): string {
+     const repoPath = config.type === 'organizational' 
+       ? `github.com/${config.owner}/${config.name}`
+       : `github.com/yourusername/${config.name}`;
+     
+     return `# ${toTitleCase(config.name)}
+
+${config.description}
+
+## Installation
+
+Add this context to your project:
+
+\`\`\`bash
+ctx add ${repoPath}
+\`\`\`
+
+## Contents
+
+- **index.md** - Essential standards (always loaded)
+- **details/** - Detailed documentation (loaded on demand)
+
+## Usage
+
+After adding this context, AI assistants will automatically:
+1. Follow the standards in \`index.md\` for all tasks
+2. Read detailed guides when working on specific areas
+
+## Contributing
+
+To suggest improvements:
+
+1. Fork this repository
+2. Make your changes
+3. Submit a pull request
+
+Or use \`ctx push\` from your project:
+
+\`\`\`bash
+# Edit the context locally in your project
+vim .context/packages/${repoPath}/index.md
+
+# Push changes back
+ctx push ${repoPath}
+\`\`\`
+
+## License
+
+${config.license}
+`;
+   }
+   
+   function generateGitignore(): string {
+     return `# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temp
+*.tmp
+.cache/
+`;
+   }
+   ```
+
+5. **License Fetching**:
+   ```typescript
+   async function fetchLicenseText(licenseName: string): Promise<string> {
+     const licenses: Record<string, string> = {
+       'MIT': 'https://raw.githubusercontent.com/licenses/license-templates/master/templates/mit.txt',
+       'Apache-2.0': 'https://raw.githubusercontent.com/licenses/license-templates/master/templates/apache-2.0.txt',
+       // ... other licenses
+     };
+     
+     if (licenseName === 'Proprietary') {
+       return 'Copyright (c) All Rights Reserved.';
+     }
+     
+     const url = licenses[licenseName];
+     if (!url) {
+       throw new Error(`Unknown license: ${licenseName}`);
+     }
+     
+     const response = await fetch(url);
+     return response.text();
+   }
+   ```
+
+6. **CLI Integration**:
+   ```typescript
+   // In commands/init.ts
+   program
+     .command('init')
+     .description('Initialize a new project or context repository')
+     .option('--context', 'Create a new context repository')
+     .option('--type <type>', 'Context type: personal or organizational')
+     .option('--name <name>', 'Context name')
+     .option('--description <desc>', 'Context description')
+     .option('--org <org>', 'Organization name (for organizational contexts)')
+     .option('--tags <tags>', 'Comma-separated tags')
+     .option('--license <license>', 'License type')
+     .option('--no-git', 'Skip git initialization')
+     .action(async (options) => {
+       if (options.context) {
+         await initContextRepo(options);
+       } else {
+         await initProject(options);
+       }
+     });
+   ```
+
+**Command Line Examples:**
+
+```bash
+# Interactive mode
+ctx init --context
+
+# Personal context with all options
+ctx init --context \
+  --type personal \
+  --name my-standards \
+  --description "My personal coding standards" \
+  --tags "personal,typescript" \
+  --license MIT
+
+# Organizational context
+ctx init --context \
+  --type organizational \
+  --name engineering-standards \
+  --description "Company-wide standards" \
+  --org techcorp \
+  --tags "general,typescript,testing" \
+  --license MIT
+
+# Quick personal context (minimal prompts)
+ctx init --context --type personal
+
+# Quick organizational context (minimal prompts)
+ctx init --context --type organizational
+```
+
+**Success Output:**
+
+```
+✓ Created context.yaml
+✓ Created index.md  
+✓ Created details/.gitkeep
+✓ Created tools/.gitkeep
+✓ Created README.md
+✓ Created LICENSE
+✓ Created .gitignore
+✓ Initialized Git repository
+
+Next steps:
+  1. Edit index.md to add your essential standards
+  2. Add detailed docs in details/ folder
+  3. Create a GitHub repository:
+     
+     gh repo create techcorp/engineering-standards --public
+     git remote add origin git@github.com:techcorp/engineering-standards.git
+     git add .
+     git commit -m "Initial context"
+     git push -u origin main
+     
+  4. Tag your first release:
+     
+     git tag v0.1.0
+     git push --tags
+     
+  5. Share with your team:
+     
+     ctx add github.com/techcorp/engineering-standards
+
+Learn more: https://github.com/context-manager/docs
 ```
 
 #### 2. Adding Contexts
@@ -395,17 +777,276 @@ generate:
     enabled: true
     strategy: reference      # reference | embed | hybrid
     path: CLAUDE.md
-    
+
   copilot:
     enabled: true
     strategy: hybrid
     path: .github/copilot-instructions.md
-    
+
   agents:
     enabled: true
     strategy: reference
     path: AGENTS.md
 ```
+
+---
+
+## Auto-Injection System
+
+### Overview
+
+Context Injector automatically generates tool-specific configuration files that AI coding tools read on session startup. This enables **zero-command context injection** - users install packages once, and all supported tools automatically receive the context.
+
+### Architecture Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Context Manager CLI                           │
+│                   (Source of Truth)                              │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              │ ctx install / ctx add / ctx remove
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                  .context/                                       │
+│  ├── manifest.yaml    (installed packages)                      │
+│  ├── lock.yaml        (pinned versions)                         │
+│  └── packages/        (actual content)                          │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              │ generates / syncs
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              Auto-read Files (Generated Output)                  │
+│  ├── CLAUDE.md           → Claude Code                          │
+│  ├── .cursorrules        → Cursor                               │
+│  ├── .windsurfrules      → Windsurf                             │
+│  ├── .continuerules      → Continue.dev                         │
+│  └── .github/copilot-instructions.md → GitHub Copilot           │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              │ auto-read on session start
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    AI Coding Tools                               │
+│      (Claude Code, Cursor, Windsurf, Copilot, Continue)         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Supported Tools and Auto-read Files
+
+| Tool | Auto-read File | Location | Notes |
+|------|----------------|----------|-------|
+| Claude Code | `CLAUDE.md` | Project root | Also reads `~/.claude/CLAUDE.md` globally |
+| Cursor | `.cursorrules` | Project root | |
+| Windsurf | `.windsurfrules` | Project root | |
+| GitHub Copilot | `copilot-instructions.md` | `.github/` | |
+| Continue.dev | `.continuerules` | Project root | |
+| Aider | `.aider.conf.yml` | Project root | |
+
+### CLI Commands and File Generation
+
+Every command that modifies installed packages triggers auto-regeneration of all config files:
+
+| Command | Effect on Auto-read Files |
+|---------|---------------------------|
+| `ctx init` | Creates initial auto-read files |
+| `ctx add <pkg>` | Regenerates all auto-read files |
+| `ctx remove <pkg>` | Regenerates all auto-read files |
+| `ctx install` | Regenerates all auto-read files |
+| `ctx sync` | Regenerates auto-read files only (no package changes) |
+| `ctx generate` | Explicitly regenerates specific or all files |
+
+### Content Strategy: Hybrid Approach
+
+Auto-read files use a hybrid strategy balancing token efficiency with completeness:
+
+#### 1. Critical Rules (Inlined)
+
+Essential rules that must always be followed are included directly in the generated files:
+
+```markdown
+## Critical Rules
+
+- Never use `any` type in TypeScript
+- Always use named exports
+- Error handling: use Result pattern
+- All API responses must be typed
+```
+
+#### 2. Detailed Standards (Referenced)
+
+Comprehensive documentation is referenced for on-demand loading by the AI agent:
+
+```markdown
+## Detailed Standards
+
+For comprehensive guidelines, read these files when working on related tasks:
+
+| Topic | File | When to Read |
+|-------|------|--------------|
+| TypeScript | `.context/packages/typescript-standards/README.md` | Writing TS code |
+| React Patterns | `.context/packages/react-patterns/README.md` | Creating components |
+| API Design | `.context/packages/api-guidelines/README.md` | Building endpoints |
+```
+
+### Generation Algorithm
+
+```typescript
+interface GeneratorOptions {
+  strategy: 'reference' | 'embed' | 'hybrid';
+  maxInlineSize?: number;  // bytes, default 2000
+}
+
+function generateAutoInjectFiles(manifest: Manifest): void {
+  const packages = loadInstalledPackages(manifest);
+  const config = manifest.generate || getDefaultGenerateConfig();
+
+  // Generate for each enabled tool
+  if (config.claude?.enabled !== false) {
+    generateFile('CLAUDE.md', packages, config.claude);
+  }
+  if (config.cursor?.enabled !== false) {
+    generateFile('.cursorrules', packages, config.cursor);
+  }
+  if (config.windsurf?.enabled !== false) {
+    generateFile('.windsurfrules', packages, config.windsurf);
+  }
+  if (config.copilot?.enabled !== false) {
+    generateFile('.github/copilot-instructions.md', packages, config.copilot);
+  }
+  if (config.continue?.enabled !== false) {
+    generateFile('.continuerules', packages, config.continue);
+  }
+}
+
+function generateFile(
+  path: string,
+  packages: Package[],
+  options: GeneratorOptions
+): void {
+  let content = getHeader(path);
+
+  // Always inline critical rules
+  content += "## Critical Rules\n\n";
+  for (const pkg of packages) {
+    const critical = pkg.getCriticalRules();
+    if (critical) {
+      content += `### ${pkg.name}\n${critical}\n\n`;
+    }
+  }
+
+  // Strategy-dependent detailed content
+  if (options.strategy === 'embed') {
+    // Full inline - embeds all content
+    content += "## Full Standards\n\n";
+    for (const pkg of packages) {
+      content += `### ${pkg.name}\n`;
+      content += pkg.getFullContent();
+      content += "\n\n";
+    }
+  } else {
+    // Reference or hybrid - points to files
+    content += "## Detailed Standards\n\n";
+    content += "For comprehensive guidelines, read the following:\n\n";
+    for (const pkg of packages) {
+      content += `- **${pkg.name}**: \`.context/packages/${pkg.name}/\`\n`;
+    }
+  }
+
+  writeFileSync(path, content);
+}
+```
+
+### Git Strategy Options
+
+Two valid approaches for version control of generated files:
+
+#### Option A: Gitignore Generated Files (Recommended for Teams)
+
+```gitignore
+# .gitignore
+# Generated by ctx - regenerate with `ctx install`
+CLAUDE.md
+.cursorrules
+.windsurfrules
+.continuerules
+.github/copilot-instructions.md
+```
+
+**Pros:**
+- Clean git history
+- No merge conflicts on generated files
+- Single source of truth in `.context/`
+
+**Cons:**
+- Teammates must run `ctx install` after clone
+- CI/CD needs `ctx install` step
+
+#### Option B: Commit Generated Files (Simpler Onboarding)
+
+```gitignore
+# .gitignore
+# Only ignore package contents (submodules handle this)
+# Generated files are committed
+```
+
+**Pros:**
+- Works immediately for new teammates
+- No extra setup required
+- AI tools work without running any commands
+
+**Cons:**
+- Generated files appear in git diff
+- Potential merge conflicts
+- Must remember to regenerate after package changes
+
+### Design Rationale
+
+#### Why Auto-read Files vs Hooks?
+
+We evaluated three injection mechanisms:
+
+| Approach | Automatic | Cross-tool | Complexity |
+|----------|-----------|------------|------------|
+| **Hooks** (Python scripts) | ✅ | ❌ Claude only | High |
+| **Slash commands** | ❌ Manual | ❌ Claude only | Medium |
+| **Auto-read files** | ✅ | ✅ All tools | Low |
+
+**Decision:** Auto-read files were chosen because:
+
+1. **Universal compatibility** - Works with any AI coding tool that supports config files
+2. **Zero friction** - No commands needed after initial `ctx install`
+3. **Simple implementation** - Just file generation, no runtime components
+4. **Predictable behavior** - Same content every session
+5. **No vendor lock-in** - Standard markdown files, no proprietary format
+
+#### Why Hybrid Content Strategy?
+
+1. **Token efficiency** - Avoids loading 10,000+ tokens on every session
+2. **Critical rules always visible** - Most important rules can't be missed
+3. **On-demand details** - Agent loads comprehensive docs when needed
+4. **Progressive disclosure** - Matches how developers consume documentation
+
+#### Alternative Considered: Claude Code Hooks
+
+Claude Code supports a hooks system that can inject context dynamically:
+
+```python
+# .claude/hooks/session-start.py
+# Runs on every session start, prints to stdout → injected into conversation
+```
+
+**Why we didn't choose this as primary:**
+- Only works with Claude Code
+- Requires Python runtime
+- More complex to debug
+- Users can't easily see what's injected
+
+**Potential future enhancement:** Offer `ctx install --with-hooks` for Claude Code users who want advanced features like task-based dynamic injection.
 
 ---
 
@@ -1025,4 +1666,5 @@ npx context-manager init
 
 ## Changelog
 
+- **2026-01-29**: Added Auto-Injection System section documenting cross-tool config file generation
 - **2026-01-29**: Initial implementation design consolidated from issues analysis
