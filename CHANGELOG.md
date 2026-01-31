@@ -29,5 +29,6 @@ All notable changes to this project will be documented in this file. See [standa
 * **ci:** add run_e2e.sh for dockerized e2e smoke tests ([f471322](https://github.com/builderx-ai/context-manager/commit/f471322464e228d805ff0df31867d2c9aee3139e))
 * **ci:** fix ctx init invocation (remove --name) ([644a23e](https://github.com/builderx-ai/context-manager/commit/644a23e548ad711e5e2a30b9d405f13dce4af893))
 * **make:** ensure e2e installs dependencies before build in CI ([62e0961](https://github.com/builderx-ai/context-manager/commit/62e0961be1e2b00265cfa3dd80f207cad5dbd353))
+* **release:** 0.0.0 ([9a5189c](https://github.com/builderx-ai/context-manager/commit/9a5189c437a53bcd8ee41db5e45cb266d7a94caa))
 * set initial version to 0.0.0 ([28e08e2](https://github.com/builderx-ai/context-manager/commit/28e08e2bcdf92083e3c80fe2c9a563f07d5ffc3c))
 * update .gitignore (tmp-e2e, tgz, coverage, caches, .context/packages) ([58fdefe](https://github.com/builderx-ai/context-manager/commit/58fdefe539e1ac8c38d60428d88b85f6f1b611cd))
