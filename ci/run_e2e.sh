@@ -55,7 +55,8 @@ ctx status || true
 echo "- Create a fresh test repo and run ctx init"
 mkdir repo-a && pushd repo-a >/dev/null
 git init -q
-ctx init --name test-repo || true
+# ctx init currently doesn't take a --name option; call without args
+ctx init || true
 popd >/dev/null
 
 echo "E2E smoke tests completed successfully"
