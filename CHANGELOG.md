@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.1](https://github.com/builderx-ai/context-manager/compare/v0.0.0...v0.0.1) (2026-01-31)
+
+
+### Features
+
+* setup automated release workflow and rename package to @builderx-ai/context-manager ([2147052](https://github.com/builderx-ai/context-manager/commit/2147052f57dac1c8feb98bed709feac31b32e708))
+
+
+### Chores
+
+* **release:** 0.0.0 ([4df4fb5](https://github.com/builderx-ai/context-manager/commit/4df4fb51ac95f4de5842f6c874bb7278005a05cb))
+* remove deprecated publish.yml workflow ([002b092](https://github.com/builderx-ai/context-manager/commit/002b0924ad00a821ffcedf06e0a7bcc0af3d5fba))
+
 ## 0.0.0 (2026-01-31)
 
 

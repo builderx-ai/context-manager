@@ -1,6 +1,6 @@
 {
   "name": "@builderx-ai/context-manager",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "A CLI tool for managing and injecting AI coding contexts across projects.",
   "license": "MIT",
   "repository": {
