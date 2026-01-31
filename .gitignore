@@ -21,3 +21,18 @@ Thumbs.db
 # Environment files
 .env
 .env.local
+
+# Temporary e2e and packaging artifacts
+tmp-e2e/
+*.tgz
+
+# Test coverage and test caches
+coverage/
+.nyc_output/
+
+# Tooling caches
+.cache/
+.parcel-cache/
+
+# Context manager local installs
+.context/packages/
