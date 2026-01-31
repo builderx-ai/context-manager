@@ -6,6 +6,7 @@ import { CONTEXT_DIR } from './project.js';
 
 export type Manifest = {
   sources: string[];
+  agent?: string;
   overrides?: Record<string, string>;
 };
 
@@ -15,6 +16,7 @@ export async function readManifest(projectDir: string): Promise<Manifest> {
   const doc = YAML.parse(raw) ?? {};
   return {
     sources: Array.isArray(doc.sources) ? doc.sources.map(String) : [],
+    agent: typeof doc.agent === 'string' ? doc.agent : undefined,
     overrides: doc.overrides && typeof doc.overrides === 'object' ? doc.overrides : undefined
   };
 }

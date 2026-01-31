@@ -9,7 +9,7 @@ export async function ensureProjectInitialized(projectDir: string): Promise<void
   await fs.access(manifestPath);
 }
 
-export async function initProject(projectDir: string): Promise<void> {
+export async function initProject(projectDir: string, opts?: { agent?: string }): Promise<void> {
   const ctxDir = path.join(projectDir, CONTEXT_DIR);
   await fs.mkdir(ctxDir, { recursive: true });
 
@@ -20,10 +20,23 @@ export async function initProject(projectDir: string): Promise<void> {
   try {
     await fs.access(manifestPath);
   } catch {
-    await fs.writeFile(
-      manifestPath,
-      'sources: []\n\n# generate: optional per-tool config (future)\n# paths: optional output paths (future)\n'
-    );
+    const agent = opts?.agent || 'agents';
+    const manifestContent = `# Context Manager Manifest
+# Specifies which contexts to install and which AI agent configs to generate
+
+sources: []
+
+# AI agent preference (default: agents)
+# Options: claude, agents, copilot, opencode, kilo, all
+# - claude: Generate CLAUDE.md only
+# - agents: Generate AGENTS.md only (default, works with most AI coding tools)
+# - copilot: Generate .github/copilot-instructions.md only
+# - opencode: Generate opencode.md only
+# - kilo: Generate kilo.md only
+# - all: Generate all supported agent configs
+agent: ${agent}
+`;
+    await fs.writeFile(manifestPath, manifestContent);
     // eslint-disable-next-line no-console
     console.log(chalk.green('✓ Created .context/manifest.yaml'));
   }

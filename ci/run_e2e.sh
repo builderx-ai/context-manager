@@ -454,6 +454,92 @@ popd >/dev/null
 echo ""
 
 # =============================================================================
+# E2E Scenario 11: Agent selection
+# =============================================================================
+
+info "=== Scenario 11: Agent selection (claude, agents, copilot, opencode, kilo) ==="
+
+# Test 1: Initialize with --agent claude
+PROJECT_CLAUDE="${TMPDIR}/project-claude"
+mkdir -p "${PROJECT_CLAUDE}"
+pushd "${PROJECT_CLAUDE}" >/dev/null
+
+git init -q
+git config user.email "test@example.com"
+git config user.name "Test User"
+
+info "Running: ctx init --agent claude"
+ctx init --agent claude
+
+assert_file_contains ".context/manifest.yaml" "agent: claude"
+success "Project initialized with agent: claude"
+
+popd >/dev/null
+
+# Test 2: Initialize with default agent (agents)
+PROJECT_DEFAULT="${TMPDIR}/project-default-agent"
+mkdir -p "${PROJECT_DEFAULT}"
+pushd "${PROJECT_DEFAULT}" >/dev/null
+
+git init -q
+git config user.email "test@example.com"
+git config user.name "Test User"
+
+info "Running: ctx init (default agent should be 'agents')"
+ctx init
+
+assert_file_contains ".context/manifest.yaml" "agent: agents"
+success "Project initialized with default agent: agents"
+
+popd >/dev/null
+
+# Test 3: Install with agent preference and verify correct files are generated
+pushd "${PROJECT_CLAUDE}" >/dev/null
+
+info "Adding context and installing with agent: claude"
+ctx add "${CONTEXT_REPO_URL}"
+ctx install
+
+# Should generate CLAUDE.md only (based on manifest agent: claude)
+if [ -f "CLAUDE.md" ]; then
+  success "CLAUDE.md generated (as expected for agent: claude)"
+else
+  error "CLAUDE.md not found (expected for agent: claude)"
+  exit 1
+fi
+
+# Should NOT generate AGENTS.md (since agent is claude, not agents or all)
+if [ ! -f "AGENTS.md" ]; then
+  success "AGENTS.md not generated (correct, agent is claude)"
+else
+  warn "AGENTS.md was generated (unexpected, agent is claude not all)"
+fi
+
+popd >/dev/null
+
+# Test 4: Generate command with explicit --agent override
+pushd "${PROJECT_DEFAULT}" >/dev/null
+
+info "Adding context and installing..."
+ctx add "${CONTEXT_REPO_URL}"
+ctx install
+
+# Manifest says 'agents', so AGENTS.md should be generated
+assert_file_exists "AGENTS.md"
+success "AGENTS.md generated (as expected for agent: agents)"
+
+info "Running: ctx generate --agent copilot (override manifest)"
+ctx generate --agent copilot
+
+# Should generate copilot instructions even though manifest says 'agents'
+assert_file_exists ".github/copilot-instructions.md"
+success "copilot-instructions.md generated via --agent override"
+
+popd >/dev/null
+
+echo ""
+
+# =============================================================================
 # Summary
 # =============================================================================
 
@@ -472,6 +558,7 @@ echo "  ✓ Multiple projects with shared contexts"
 echo "  ✓ Config regeneration (ctx generate)"
 echo "  ✓ Health checks (ctx doctor)"
 echo "  ✓ Reset changes (ctx reset)"
+echo "  ✓ Agent selection (claude, agents, copilot, opencode, kilo)"
 echo ""
 
 # =============================================================================

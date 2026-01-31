@@ -91,7 +91,7 @@ export async function installAll(projectDir: string, opts: { frozen: boolean }):
       console.log(chalk.green(`✓ Installed ${url} @ ${entry.commit.slice(0, 7)}`));
     }
 
-    await generateAll(projectDir, { target: 'all' });
+    await generateAll(projectDir, {});
     return;
   }
 
@@ -167,5 +167,5 @@ export async function installAll(projectDir: string, opts: { frozen: boolean }):
   // eslint-disable-next-line no-console
   console.log(chalk.green('✓ Updated .context/lock.yaml'));
 
-  await generateAll(projectDir, { target: 'all' });
+  await generateAll(projectDir, {});
 }
