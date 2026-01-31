@@ -28,7 +28,12 @@ docker-e2e:
 	docker run --rm -v "$(PWD)":/workspace -w /workspace $(DEFAULT_IMAGE) \
 		bash -lc "bash ci/run_e2e.sh"
 
-e2e: build pack docker-e2e
+e2e:
+	@echo "Running full e2e: install deps, build, pack, docker-e2e"
+	npm ci --prefer-offline --no-audit --no-fund
+	$(MAKE) build
+	$(MAKE) pack
+	$(MAKE) docker-e2e
 
 down:
 	rm -rf tmp-e2e *.tgz || true
