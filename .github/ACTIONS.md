@@ -46,42 +46,63 @@ To enable NPM publishing, you need to configure the `NPM_TOKEN` secret:
 
 ### Publishing a New Version
 
-1. **Update version in package.json**:
+**This project uses [Semantic Versioning](https://semver.org/) and automated release management.**
+
+See [docs/VERSIONING.md](../docs/VERSIONING.md) for complete guide.
+
+#### Quick Start
+
+1. **Make commits using [Conventional Commits](https://www.conventionalcommits.org/)**:
    ```bash
-   npm version patch  # or minor, or major
+   git commit -m "feat: add new feature"
+   git commit -m "fix: resolve bug"
    ```
 
-2. **Push the tag**:
+2. **Create a release** (automatically bumps version, updates CHANGELOG, creates tag):
    ```bash
-   git push origin main --tags
+   npm run release        # Auto-detect version bump from commits
+   # OR
+   npm run release:patch  # Bug fixes: 0.1.0 → 0.1.1
+   npm run release:minor  # New features: 0.1.0 → 0.2.0
+   npm run release:major  # Breaking changes: 0.1.0 → 1.0.0
    ```
 
-3. **GitHub Actions will automatically**:
+3. **Push to trigger publish**:
+   ```bash
+   git push --follow-tags origin main
+   ```
+
+4. **GitHub Actions will automatically**:
    - Run E2E tests
    - Publish to NPM if tests pass
-   - Create a GitHub Release
+   - Create GitHub Release with changelog
 
 ### Example Release Workflow
 
 ```bash
-# Make your changes
+# Make your changes using conventional commits
 git add .
-git commit -m "feat: add new feature"
+git commit -m "feat: add context search command"
+git commit -m "fix: handle missing manifest gracefully"
 
-# Bump version (this creates a git tag)
-npm version patch  # 0.1.0 → 0.1.1
+# Create release (bumps version, updates CHANGELOG, creates tag)
+npm run release
 
 # Push changes and tags
-git push origin main --tags
+git push --follow-tags origin main
 
 # GitHub Actions will handle the rest!
 ```
 
-## Version Tagging Strategy
+## Semantic Versioning
 
-- `npm version patch` - Bug fixes (0.1.0 → 0.1.1)
-- `npm version minor` - New features (0.1.0 → 0.2.0)
-- `npm version major` - Breaking changes (0.1.0 → 1.0.0)
+This project follows [Semantic Versioning 2.0.0](https://semver.org/):
+
+- **PATCH** (`npm run release:patch`) - Bug fixes: 0.1.0 → 0.1.1
+- **MINOR** (`npm run release:minor`) - New features: 0.1.0 → 0.2.0
+- **MAJOR** (`npm run release:major`) - Breaking changes: 0.1.0 → 1.0.0
+
+Version bumps are **automatically determined** from conventional commits when you run `npm run release`.
 
 ## Troubleshooting
 
