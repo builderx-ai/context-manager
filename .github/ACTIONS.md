@@ -14,13 +14,21 @@ This repository uses GitHub Actions for continuous integration and deployment.
   - Run E2E tests in Docker
   - Upload test artifacts on failure
 
-### 2. Publish to NPM (`publish.yml`)
-- **Trigger**: When a tag starting with `v` is pushed (e.g., `v0.1.0`, `v1.2.3`)
+### 2. Automated Release (`release.yml`) ⭐ NEW
+- **Trigger**: Every push to `main` branch (excluding documentation-only changes)
 - **Actions**:
-  - Run full E2E test suite
-  - Verify package.json version matches tag
-  - Build and publish to NPM
+  - Run E2E tests
+  - Build project
+  - Create version bump (based on conventional commits)
+  - Generate CHANGELOG
+  - Create git tag
+  - Push tag back to repository
+  - Publish to NPM as `@builderx-ai/context-manager`
   - Create GitHub Release
+
+### 3. Publish to NPM (`publish.yml`) - DEPRECATED
+- **Note**: This workflow is deprecated in favor of the automated release workflow
+- Previously triggered when tags were pushed manually
 
 ## Setup Instructions
 
@@ -46,52 +54,80 @@ To enable NPM publishing, you need to configure the `NPM_TOKEN` secret:
 
 ### Publishing a New Version
 
-**This project uses [Semantic Versioning](https://semver.org/) and automated release management.**
+**This project uses FULLY AUTOMATED releases.**
 
-See [docs/VERSIONING.md](../docs/VERSIONING.md) for complete guide.
+#### Automated Release (Recommended) ⭐
 
-#### Quick Start
+Simply commit using conventional commits and push to main:
 
-1. **Make commits using [Conventional Commits](https://www.conventionalcommits.org/)**:
-   ```bash
-   git commit -m "feat: add new feature"
-   git commit -m "fix: resolve bug"
-   ```
+```bash
+# Make changes and commit
+git add .
+git commit -m "feat: add new search command"
 
-2. **Create a release** (automatically bumps version, updates CHANGELOG, creates tag):
-   ```bash
-   npm run release        # Auto-detect version bump from commits
-   # OR
-   npm run release:patch  # Bug fixes: 0.1.0 → 0.1.1
-   npm run release:minor  # New features: 0.1.0 → 0.2.0
-   npm run release:major  # Breaking changes: 0.1.0 → 1.0.0
-   ```
+# Push to main - this triggers EVERYTHING automatically
+git push origin main
+```
 
-3. **Push to trigger publish**:
-   ```bash
-   git push --follow-tags origin main
-   ```
+**GitHub Actions will automatically:**
+1. ✅ Run E2E tests
+2. ✅ Analyze commits since last release
+3. ✅ Determine version bump (feat→MINOR, fix→PATCH, feat!→MAJOR)
+4. ✅ Update package.json version
+5. ✅ Generate/update CHANGELOG.md
+6. ✅ Create release commit and tag
+7. ✅ Push tag back to repo
+8. ✅ Publish to NPM as `@builderx-ai/context-manager`
+9. ✅ Create GitHub Release with notes
 
-4. **GitHub Actions will automatically**:
-   - Run E2E tests
-   - Publish to NPM if tests pass
-   - Create GitHub Release with changelog
+**Important:**
+- Only commits to `main` branch trigger releases
+- Documentation-only changes (*.md, docs/**, .github/**) are ignored
+- Use conventional commits (feat:, fix:, etc.) for proper version bumping
+
+#### Manual Release (Advanced)
+
+If you need control over release timing:
+
+#### Manual Release (Advanced)
+
+If you need control over release timing:
+
+```bash
+# 1. Create release locally
+npm run release              # Auto-detect bump
+npm run release:patch        # Force patch
+npm run release:minor        # Force minor
+npm run release:major        # Force major
+
+# 2. Push to main
+git push --follow-tags origin main
+
+# GitHub Actions will handle NPM publish + GitHub Release
+```
+
+**Note:** The automated workflow on main will detect the existing version bump and skip re-creating it.
 
 ### Example Release Workflow
 
+**Automated (Recommended):**
 ```bash
-# Make your changes using conventional commits
+# Just commit and push
 git add .
 git commit -m "feat: add context search command"
 git commit -m "fix: handle missing manifest gracefully"
+git push origin main
 
-# Create release (bumps version, updates CHANGELOG, creates tag)
+# That's it! GitHub Actions does everything else.
+```
+
+**Manual control:**
+```bash
+# Create release locally
 npm run release
 
-# Push changes and tags
+# Push to trigger publish
 git push --follow-tags origin main
-
-# GitHub Actions will handle the rest!
 ```
 
 ## Semantic Versioning

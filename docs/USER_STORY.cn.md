@@ -19,7 +19,7 @@ Alex 决定尝试 **context-manager**。
 ### 安装工具
 
 ```bash
-npm install -g context-manager
+npm install -g @builderx-ai/context-manager
 ```
 
 ### 初始化项目

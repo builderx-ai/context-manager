@@ -46,52 +46,72 @@ BREAKING CHANGE: Node 18 or higher is now required
 
 ## Release Workflow
 
-### 1. Development
+We use **fully automated releases** triggered by pushing to the `main` branch. The workflow:
 
-Make changes and commit using conventional commit messages:
+1. **Commit changes** using Conventional Commits
+2. **Push to main** branch
+3. **GitHub Actions** automatically:
+   - Runs E2E tests
+   - Creates version bump
+   - Generates CHANGELOG
+   - Creates git tag
+   - Pushes tag back to repo
+   - Publishes to NPM
+   - Creates GitHub Release
+
+### Automated Release (Recommended)
+
+Just commit and push to main:
 
 ```bash
+# Make changes and commit using conventional commits
 git add .
 git commit -m "feat: add new command for listing contexts"
+
+# Push to main - this triggers the automated release
+git push origin main
 ```
 
-### 2. Create a Release
+**What happens automatically:**
+1. ✅ GitHub Actions runs E2E tests
+2. ✅ Analyzes commits since last release
+3. ✅ Determines appropriate version bump (based on commit types)
+4. ✅ Updates `package.json` version
+5. ✅ Generates/updates `CHANGELOG.md`
+6. ✅ Creates git commit: `chore(release): x.y.z`
+7. ✅ Creates git tag: `vx.y.z`
+8. ✅ Pushes tag back to repository
+9. ✅ Publishes to NPM as `@builderx-ai/context-manager`
+10. ✅ Creates GitHub Release with changelog
 
-Use npm scripts to create a new release:
+**Important Notes:**
+- Only commits to `main` branch trigger releases
+- Documentation-only changes (*.md) don't trigger releases
+- Breaking changes (feat!, fix! or BREAKING CHANGE:) trigger MAJOR version bump
+- feat: commits trigger MINOR version bump
+- fix: commits trigger PATCH version bump
 
-```bash
-# Automatic version bump based on commits
-npm run release
+### Manual Release (Advanced)
 
-# Or specify version type explicitly
-npm run release:patch   # 0.1.0 → 0.1.1 (bug fixes)
-npm run release:minor   # 0.1.0 → 0.2.0 (new features)
-npm run release:major   # 0.1.0 → 1.0.0 (breaking changes)
-
-# First release (doesn't bump version)
-npm run release:first
-```
-
-This will:
-- ✅ Analyze commits since last release
-- ✅ Determine appropriate version bump
-- ✅ Update `package.json` version
-- ✅ Generate/update `CHANGELOG.md`
-- ✅ Create a git commit: `chore(release): x.y.z`
-- ✅ Create a git tag: `vx.y.z`
-
-### 3. Push to Trigger Publish
+If you need more control over the release timing or version:
 
 ```bash
-# Push commits and tags
+# 1. Create release locally
+npm run release              # Auto-determine version
+npm run release:patch        # Force patch: 0.1.0 → 0.1.1
+npm run release:minor        # Force minor: 0.1.0 → 0.2.0
+npm run release:major        # Force major: 0.1.0 → 1.0.0
+npm run release:first        # First release (no bump)
+
+# 2. Review the changes
+git log -1                   # Check release commit
+cat CHANGELOG.md             # Review changelog
+
+# 3. Push to trigger publish
 git push --follow-tags origin main
 ```
 
-This triggers GitHub Actions to:
-- ✅ Run E2E tests
-- ✅ Verify version matches tag
-- ✅ Publish to NPM
-- ✅ Create GitHub Release with changelog
+This creates the version bump locally, then pushing triggers the rest of the automation (NPM publish + GitHub Release).
 
 ## Examples
 

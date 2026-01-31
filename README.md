@@ -19,7 +19,7 @@ Context Injector is a decentralized tool that enables teams to share and manage 
 
 ```bash
 # Install
-npm install -g context-manager
+npm install -g @builderx-ai/context-manager
 
 # Initialize in your project
 ctx init

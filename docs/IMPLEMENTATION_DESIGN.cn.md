@@ -1576,7 +1576,7 @@ context-manager/
 
 ```bash
 # 全局安装
-npm install -g context-manager
+npm install -g @builderx-ai/context-manager
 
 # 使用
 ctx init

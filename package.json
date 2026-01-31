@@ -1,8 +1,22 @@
 {
-  "name": "context-manager",
+  "name": "@builderx-ai/context-manager",
   "version": "0.0.0",
   "description": "A CLI tool for managing and injecting AI coding contexts across projects.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/builderx-ai/context-manager.git"
+  },
+  "keywords": [
+    "ai",
+    "context",
+    "cli",
+    "claude",
+    "copilot",
+    "cursor",
+    "coding-assistant",
+    "context-management"
+  ],
   "type": "module",
   "bin": {
     "ctx": "dist/cli/index.js"

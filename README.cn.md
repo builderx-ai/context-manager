@@ -19,7 +19,7 @@ Context Injector 是一个去中心化的工具，允许团队通过 Git 仓库�
 
 ```bash
 # 安装
-npm install -g context-manager
+npm install -g @builderx-ai/context-manager
 
 # 在项目中初始化
 ctx init

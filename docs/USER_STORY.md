@@ -19,7 +19,7 @@ Alex decides to try **context-manager**.
 ### Installing the Tool
 
 ```bash
-npm install -g context-manager
+npm install -g @builderx-ai/context-manager
 ```
 
 ### Initializing a Project
