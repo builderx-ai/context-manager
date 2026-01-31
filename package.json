@@ -1,0 +1,39 @@
+{
+  "name": "context-manager",
+  "version": "0.1.0",
+  "description": "A CLI tool for managing and injecting AI coding contexts across projects.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "ctx": "dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "README.cn.md",
+    "docs"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/cli/index.ts",
+    "lint": "echo 'no lint configured'",
+    "test": "node --test --import tsx",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "commander": "^12.1.0",
+    "inquirer": "^9.3.7",
+    "semver": "^7.7.2",
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/semver": "^7.7.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
